@@ -131,39 +131,83 @@ if(!require("rglwidget")) {install.packages("rglwidget");require("rglwidget")}
 
 # title, exploration, etc
 
-$H_A$: In these countries, there's a significant difference in the number of deaths from diabetes between the sexes. 
+$H_A$: In the US, there's a significant difference in the number of deaths from diabetes between the sexes. 
 
-$H_0$: In these countries, the number of deaths from diabetes is independent from sex. 
+$H_0$: In the US, the number of deaths from diabetes is independent from sex. 
 
-## US, comparing diseases
-
-```{r}
-## is this necessary?
-basicCN <- ggplot(rawUS_allSex,aes(x=disease,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Comparing diseases in the US", x = "disease", y = "deaths")
-```
-
-In the US, regardless of sex, cardiovascular diseases are the deadliest of the 4 categories, followed by neoplasms and respiratory diseases. Diabetes, comparatively, kills very few people; this can be explained by diabetes being only 2 diseases (type 1 and type 2), as opposed to broader categories like respiratory and cardiovascular diseases. Even so, diabetes seems  (proportionally to other diseases) like a bigger killer than in the UK or Japan. 
-
-
-### US diabetes (regardless of sex) - numeric 
-
-```{r, include=FALSE}
-#graph setup
-USdiabetes_allSex <- select(rawUSdiabetes_allSex, -Dim1ValueCode)
-USdiabetes_allSex <- select(USdiabetes_allSex, -Value)
-USdiabetes_allSex <- select(USdiabetes_allSex, -sexCat)
-USdiabetes_allSex <- select(USdiabetes_allSex, -disease)
-USdiabetes_allSex <- select(USdiabetes_allSex, -SpatialDimValueCode)
-
-##remove period later so the graph still works
-USdiabetes_allSexSummary <- select(USdiabetes_allSex, -Period)
-```
+# US bar chart, between sexes 
 
 ```{r}
-summary(USdiabetes_allSex)
+#diabetes
+##setting percents manually? doesn't need an extra graph. just find ratio
+resF <- c(sum(rawUSdiabetes_F$FactValueNumeric))
+resM <- c(sum(rawUSdiabetes_M$FactValueNumeric))
+resAll <- c(sum(rawUSdiabetes_allSex$FactValueNumeric))
+
+basicCN <- ggplot(rawUSdiabetes_2sex,aes(x=sexCat,y=FactValueNumeric, fill= sexCat))
+basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + 
+  labs(title = expression (atop(bold("Diabetes in the US by sex (total deaths)"), 
+  atop(italic("Females: 48.8%, Males: 51.2%")))), x = "sex", y= "deaths") +
+scale_fill_discrete(name= "Sex")
+
+F_perc <- resF/resAll
+  print(F_perc)
+M_perc <- resM/resAll
+  print(M_perc)
 ```
-#### US diabetes (regardless of sex) - graphical
+
+  The median deaths, as predicted, were around 36,700 for each sex. But the whiskers (margin of error) show a skew towards males; almost 50K men could have died, while the upper whisker for women is lower than 40K. 
+  
+```{r sex_summaries, include=FALSE}
+#numerical  
+#setup (making models for regression). mention y= mx+b equations in analysis. 
+  model.USdiabetes_F <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_F)
+  model.USdiabetes_M <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_M)
+  
+  #cleaning up (fem summary)
+USdiabetes_F <- select(rawUSdiabetes_F, -SpatialDimValueCode)
+USdiabetes_F <- select(USdiabetes_F, -Dim1ValueCode)
+USdiabetes_F <- select(USdiabetes_F, -Value)
+USdiabetes_F <- select(USdiabetes_F, -sexCat)
+USdiabetes_F <- select(USdiabetes_F, -disease)
+#separate summary df to remove period from summ but not graphs
+USdiabetes_FSummary <- select(USdiabetes_F, -Period)
+#rename main value
+USdiabetes_FSummary <- USdiabetes_FSummary %>%
+rename(ProbableDeaths = FactValueNumeric)
+
+#cleaning up (male summary)
+USdiabetes_M <- select(rawUSdiabetes_M, -SpatialDimValueCode)
+USdiabetes_M <- select(USdiabetes_M, -Dim1ValueCode)
+USdiabetes_M <- select(USdiabetes_M, -Value)
+USdiabetes_M <- select(USdiabetes_M, -sexCat)
+USdiabetes_M <- select(USdiabetes_M, -disease)
+#separate summary df to remove period from summ but not graphs
+USdiabetes_MSummary <- select(USdiabetes_M, -Period)
+#rename main value
+USdiabetes_MSummary <- USdiabetes_MSummary %>%
+rename(ProbableDeaths = FactValueNumeric)
+
+```
+
+## F numerical (for boxplot)
+
+```{r}
+  summary(USdiabetes_FSummary)
+```
+The boxplot only shows the probable deaths. Diabetes would kill an If the null hypothesis is true, about 35,000 deaths per sex would be expected annually. 
+  
+
+## M numerical (for boxplot)
+
+```{r}
+  summary(USdiabetes_MSummary)
+```
+
+]]average deaths, each gender
+
+# US diabetes line graph (regardless of sex)
+
 
 ```{r summary}
 require(scales)
@@ -181,33 +225,40 @@ ggplot(new_USdiabetesAllsex, aes(Period, FactValueNumeric))+
     geom_line(aes (Period, FactValueNumericHigh), color = "red", linetype = "dashed") +
     geom_line(aes (Period, FactValueNumericLow), color = "red", linetype = "dashed") +
     geom_smooth(method=lm, se=TRUE) + labs(title = "US diabetes (all sexes) over time", x= "year", y = "deaths") + scale_y_continuous(labels = comma)
-
+```
+ 
+  
+### Numerical - regression summary
+```{r}
 summary.lm(model.USdiabetesAllsex)
 ```
+The regression line (blue on the graph) is [deaths] = 677.1 * [year] - 1284550.5. 
 
-  Because of human error during data collecting, the number of deaths per year cannot be entirely certain; "Fact Value Numeric Low" is the lowest number of deaths probable in a certain year, and "Fact Value Numeric High" is the highest probable number of deaths. 
-  For example, in 2019 diabetes killed around 87,774, and the median of "Fact Value Numeric" is 74,823. However, the 'true' values in 2019 would be "87,774 [71,323 – 10,4760]", meaning it could be as low as 71K ("Numeric Low") or as high as 10K ("Numeric High"). Numeric "highs" and "lows" that are farther apart from the estimated value mean less certainty. 
-  
-  The average number of deaths from diabetes (per year) was 75,993. If the null hypothesis is true, about 35,000 deaths per sex would be expected per year (sex demographics are about even for the US and JP). 
-  
-  The regression line (blue on the graph) is [deaths] = 677.1 * [year] - 1284550.5. 
+## Numerical - general summary 
 
-## US boxplot, between sexes
+```{r, include=FALSE}
+#graph setup
+USdiabetes_allSex <- select(rawUSdiabetes_allSex, -Dim1ValueCode)
+USdiabetes_allSex <- select(USdiabetes_allSex, -Value)
+USdiabetes_allSex <- select(USdiabetes_allSex, -sexCat)
+USdiabetes_allSex <- select(USdiabetes_allSex, -disease)
+USdiabetes_allSex <- select(USdiabetes_allSex, -SpatialDimValueCode)
 
-```{r}
-#diabetes
-##setting percents manually? doesn't need an extra graph. just find ratio
-resF <- c(sum(rawUSdiabetes_F$FactValueNumeric))
-resM <- c(sum(rawUSdiabetes_M$FactValueNumeric))
-resAll <- c(sum(rawUSdiabetes_allSex$FactValueNumeric))
+##remove period later so the graph still works
+USdiabetes_allSexSummary <- select(USdiabetes_allSex, -Period)
 
-F_perc <- 
-
-basicCN <- ggplot(rawUSdiabetes_2sex,aes(x=sexCat,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Diabetes in the US by sex (total deaths)", x = "sex", y= "deaths")
+USdiabetes_allSexSummary <- USdiabetes_allSexSummary %>%
+rename(ProbableDeaths = FactValueNumeric)
 ```
 
-### diabetes (graphical and numeric)
+```{r}
+summary(USdiabetes_allSexSummary)
+```
+
+The mean annual death count is 75,993, so if the null hypothesis was true then an average of 38K of each sex would die annually. 
+
+
+# by sex (line graph)
 
 ```{r}
 #female vs male, diabetes
@@ -230,155 +281,34 @@ legend("top",
        legend = c("F (best fit)", "M (best fit)"), 
        col = c("red", "blue"), 
        lty = 2)
-
-#numerical  #setup (making models for regression). mention y= mx+b equations in analysis. 
-  model.USdiabetes_F <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_F)
-  model.USdiabetes_M <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_M)
 ```
   
-  Diabetes killing more females before 2010 might be explained by men dying earlier from other dangers like workplace hazards; modern society, due to expanded safety regulation in the workplace and otherwise, is much safer. But the upward spike afterwards (in male diabetes deaths) is still suspect and probably has other explanations, like the 2008 recession which introduced other immediate dangers like starvation due to a spike of mass unemployment. Even with the slow drop-off in unemployment after 2010, the recession seems to be have long-lasting effects. Overall, males are killed far more often by diabetes than females. 
+  Diabetes killing more females before 2010 might be explained by men dying earlier from other dangers like workplace hazards; modern society, due to expanded safety regulation in the workplace and otherwise, is much safer. But the upward spike afterwards (in male diabetes deaths) is still suspect and probably has other explanations, like the 2008 recession which introduced compounding dangers like starvation due to a spike of mass unemployment. Even with the slow drop-off in unemployment after 2010, the recession seems to be have long-lasting effects. Overall, males are killed far more often by diabetes than females. Diabetes deaths had a small spike in 2005. 
   
-```{r summaries, include=FALSE}
-#numerical  
+### regression summaries
+```{r}
 #setup (making models for regression). mention y= mx+b equations in analysis. 
   model.USdiabetes_F <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_F)
   model.USdiabetes_M <- lm(FactValueNumeric ~ Period, data = rawUSdiabetes_M)
   
-  #cleaning up (fem summary)
-USdiabetes_F <- select(rawUSdiabetes_F, -SpatialDimValueCode)
-USdiabetes_F <- select(USdiabetes_F, -Dim1ValueCode)
-USdiabetes_F <- select(USdiabetes_F, -Value)
-USdiabetes_F <- select(USdiabetes_F, -sexCat)
-USdiabetes_F <- select(USdiabetes_F, -disease)
-
-#cleaning up (male summary)
-USdiabetes_M <- select(rawUSdiabetes_M, -SpatialDimValueCode)
-USdiabetes_M <- select(USdiabetes_M, -Dim1ValueCode)
-USdiabetes_M <- select(USdiabetes_M, -Value)
-USdiabetes_M <- select(USdiabetes_M, -sexCat)
-USdiabetes_M <- select(USdiabetes_M, -disease)
+#female
+summary.lm(model.USdiabetes_F)
+#male
+summary.lm(model.USdiabetes_F)
 ```
+
+# chi test for boxplot(s)
 
 ```{r}
-  summary(USdiabetes_F)
-  summary(rawUSdiabetes_M)
-  #regular summary? or should I just show lm summaries
+#if numCat and other sht doesn't work, copy those RMDs from a WUP
 ```
 
-]]y=mx+b, how strong is association between genders (in the US?)
-]]average deaths, each gender
-
-### US resp diseases (graphical, numeric)
+# two way anova on female/male regressions over time (x= period)
 
 ```{r}
-  #resp
-plot(rawUSresp_M$Period, rawUSresp_M$FactValueNumeric, type = "l",  col="blue", 
-     main = "US resp diseases by sex, over time",
-     xlab = "year",
-     ylab = "deaths")
-lines(rawUSresp_F$Period, rawUSresp_F$FactValueNumeric, type = "l", col = "red")
-#legend
-legend("topleft",                                       # Add legend to plot
-       legend = c("Female", "Male"),
-       col = c("red", "blue"),
-       lty = 1)
+# Fem vs male
+# fem vs allsex
+# male vs allsex
 ```
-
-Deaths from respiratory diseases rose from 2000 to 2019 for both sexes, but females continue to die more often by a consistent margin (about 4K to 10K). This margin is especially obvious in 2005, when both sexes' deaths spiked in the exact same shape. (Diabetes deaths also spiked in 2005, but not by nearly as much). 
-
-Overall, males seem to be dying from these diseases a bit more often than females, significantly so with diabetes. And respiratory diseases (possibly due to being a broader category) are reconfirmed to kill more people than diabetes does.
-
-## Japan, comparing diseases
-
-```{r}
-basicCN <- ggplot(rawJP_allSex,aes(x=disease,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Resp diseases vs diabetes in Japan")
-#^the hell is up w the decimal e values?!?
-```
-
-### 2 diseases in JP, between sexes
-
-```{r, include=FALSE}
-#graph setup
-USdiabetes_allSex <- select(rawUSdiabetes_allSex, -Dim1ValueCode)
-USdiabetes_allSex <- select(USdiabetes_allSex, -Value)
-USdiabetes_allSex <- select(USdiabetes_allSex, -sexCat)
-USdiabetes_allSex <- select(USdiabetes_allSex, -disease)
-USdiabetes_allSex <- select(USdiabetes_allSex, -SpatialDimValueCode)
-
-##remove period later so the graph still works
-USdiabetes_allSexSummary <- select(USdiabetes_allSex, -Period)
-```
-
-```{r}
-summary(USdiabetes_allSex)
-```
-
-[[summary analysis
-
-```{r}
-#diabetes
-basicCN <- ggplot(rawJPdiabetes_2sex,aes(x=sexCat,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Diabetes in Japan by sex")
-
-#resp
-basicCN <- ggplot(rawJPresp_2sex,aes(x=sexCat,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="resp in Japan by sex")
-
-
-#both sexes for 1 disease over time
-  #diabetes
-plot(rawJPdiabetes_M$Period, rawJPdiabetes_M$FactValueNumeric, type = "l",  col="blue",                               
-     main = "Japanese diabetes by sex, over time",
-     xlab = "year",
-     ylab = "deaths", xlim = c(2000, 2020), ylim = c(5000, 9000))
-lines(rawJPdiabetes_F$Period, rawJPdiabetes_F$FactValueNumeric, type = "l", col = "red") 
-#legend
-legend("topleft",                                      
-       legend = c("Female", "Male"),
-       col = c("red", "blue"),
-       lty = 1)
-  #resp
-plot(rawJPresp_M$Period, rawJPresp_M$FactValueNumeric, type = "l",  col="blue", 
-     main = "Japanese resp diseases by sex, over time",
-     xlab = "year",
-     ylab = "deaths", xlim = c(2000, 2020), ylim = c(20000, 80000))
-lines(rawJPresp_F$Period, rawJPresp_F$FactValueNumeric, type = "l", col = "red")
-#legend
-legend("topleft",                                       
-       legend = c("Female", "Male"),
-       col = c("red", "blue"),
-       lty = 1)
-```
-]]analysis. The numbers that are comparatively low to the US can be explained by JP's smaller population; gender ratios were also close enough to 1:1 to not be statistically significant [source], so males dying more often might be explained by females getting better healthcare. 
-
-## Britain, comparing diseases
-
-```{r}
-basicCN <- ggplot(rawUK_allSex,aes(x=disease,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Resp diseases vs diabetes in the UK")
-```
-]]analysis. Odd that cardiovascular diseases are the most common, after seeing US and JP numbers. Diabetes is the least common killer, which could be explained in two ways: a healthcare system that prevents those with diabetes from dying, or a diet closer to JP than the US. 
-### one disease, between sexes
-
-```{r}
-#diabetes
-basicCN <- ggplot(rawUK_diabetes,aes(x=sexCat,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="Diabetes in the UK by sex")
-
-#resp
-basicCN <- ggplot(rawUK_resp,aes(x=sexCat,y=FactValueNumeric))
-basicCN + geom_boxplot(notch= FALSE ,outlier.color = "red") + stat_boxplot(geom ='errorbar') + labs(title="resp in the UK by sex")
-```
-
-## Both diseases, between the countries
-
-### diabetes
-### respiratory diseases
-
-
-
-
-
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
